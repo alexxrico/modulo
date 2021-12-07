@@ -5,6 +5,7 @@
 #include <linux/uaccess.h>
 #include <linux/sched/signal.h>
 #include <linux/sched.h>
+#include <linux/proc_fs.h>
 
 #define DEVICE_NAME "millenials_module"
 
@@ -28,6 +29,7 @@ static struct file_operations fops = {
 struct task_struct *task;        /*    Structure defined in sched.h for tasks/processes    */
 struct task_struct *task_child;        /*    Structure needed to iterate through task children    */
 struct list_head *list;            /*    Structure needed to iterate through the list in each task->children struct    */
+
 
 
 static int __init millenials_module_init(void) {
@@ -59,9 +61,7 @@ static int dev_open(struct inode *inodep, struct file *filep) {
    return 0;
 }
 
-static ssize_t dev_write(struct file *filep, const char *buffer,
-                         size_t len, loff_t *offset) {
-
+static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset) {
    printk(KERN_INFO "Sorry, Super Millenials is read only\n");
    return -EFAULT;
 }
@@ -81,24 +81,24 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
     return 0;
 }
 
-
-int print_process_list(char *buffer)
-{
+int print_process_list(char *buffer){
     char proc_string[255];
     int message_len = 0;
     int errors = 0;
-    printk(KERN_INFO "%s","LOADING MODULE\n");    /*    good practice to log when loading/removing modules    */
 
-    /*    for_each_process() MACRO for iterating through each task in the os located in linux\sched\signal.h    */
+    printk("- - - - - - - - - - - - - - - - - - - - - - -");
+    printk(KERN_INFO "%s","\tLOADING MODULE\n");
+    printk("- - - - - - - - - - - - - - - - - - - - - - -");
+
     for_each_process( task ){
         /*    log parent id/executable name/state    */
         //task->on_cpu task->prio
-        sprintf(proc_string, "\nPARENT PID: %d PROCESS: %s STATE: %ld", task->pid, task->comm, task->state);
-        printk(KERN_INFO "\nPARENT PID: %d PROCESS: %s STATE: %ld",task->pid, task->comm, task->state);
+        printk(KERN_INFO "PARENT PID: %d PROCESS: %s STATE: %ld PRIORITY: %d ",task->pid, task->comm, task->state, task->prio);
+        sprintf(proc_string, "PARENT PID: %d PROCESS: %s STATE: %ld PRIORITY: %d \n",task->pid, task->comm, task->state, task->prio);
         message_len = strlen(proc_string);
         printk(KERN_INFO "Message len: %d", message_len);
         errors = copy_to_user(buffer, proc_string, message_len);
-
+	
         /*    list_for_each MACRO to iterate through task->children    */
         list_for_each(list, &task->children){
 
@@ -106,16 +106,15 @@ int print_process_list(char *buffer)
             task_child = list_entry( list, struct task_struct, sibling );
 
             /*    log child of and child pid/name/state    */
-            sprintf(proc_string, "\nCHILD OF %s[%d] PID: %d PROCESS: %s STATE: %ld",task->comm, task->pid,
-                task_child->pid, task_child->comm, task_child->state);
-            printk(KERN_INFO "\nCHILD OF %s[%d] PID: %d PROCESS: %s STATE: %ld",task->comm, task->pid,
-                task_child->pid, task_child->comm, task_child->state);
-            message_len = strlen(proc_string);
-            errors = copy_to_user(buffer, proc_string, message_len);
+            sprintf(proc_string, "CHILD OF %s[%d] PID: %d PROCESS: %s STATE: %ld PRIORITY: %d\n",task->comm, task->pid,
+                task_child->pid, task_child->comm, task_child->state,task->prio);
+            printk(KERN_INFO "CHILD OF %s[%d] PID: %d PROCESS: %s STATE: %ld PRIORITY: %d",task->comm, task->pid,
+                task_child->pid, task_child->comm, task_child->state,task->prio);
+            //message_len = strlen(proc_string);
+            //errors = copy_to_user(buffer, proc_string, message_len);
         }
         printk("-----------------------------------------------------");    /*for aesthetics*/
     }
-
     return errors == 0 ? message_len : -EFAULT;
 }
 
